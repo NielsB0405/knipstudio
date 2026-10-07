@@ -96,11 +96,11 @@ function clipState(c, lt, W, H) {
     case 'swing': X.rot += Math.sin(lt * 3) * 12; break;
   }
   if (c.type === 'text') {
-    const ta = c.tanim;
-    if (ta === 'fade') X.a *= clamp(Math.min(lt / .5, (c.dur - lt) / .5), 0, 1);
-    else if (ta === 'pop') X.sc *= lt < .45 ? Math.max(.01, backOut(lt / .45)) : 1;
-    else if (ta === 'slide-up') { const kk = ease(clamp(lt / .6, 0, 1)); X.dy += (1 - kk) * 70 * u; X.a *= kk; }
-    else if (ta === 'bounce') X.dy -= Math.abs(Math.sin(lt * 4)) * 30 * u;
+    const ta = c.tanim, la = textAnimT(c, lt);
+    if (ta === 'fade') X.a *= clamp(Math.min(la / .5, (c.dur - la) / .5), 0, 1);
+    else if (ta === 'pop') X.sc *= la < .45 ? Math.max(.01, backOut(la / .45)) : 1;
+    else if (ta === 'slide-up') { const kk = ease(clamp(la / .6, 0, 1)); X.dy += (1 - kk) * 70 * u; X.a *= kk; }
+    else if (ta === 'bounce') X.dy -= Math.abs(Math.sin(la * 4)) * 30 * u;
   }
   X.cx = A(c, 'x', lt) * W + X.dx; X.cy = A(c, 'y', lt) * H + X.dy;
   return X;
@@ -246,7 +246,13 @@ function textVars(s, c, lt) {
     }
   });
 }
+/** Bij stilstaan met een geselecteerde tekst: in-animatie overslaan, zodat je ziet wat je typt. */
+function textAnimT(c, lt) {
+  if (playing || exporting || c.id !== sel || c.tanim === 'none' || c.tanim === 'credits') return lt;
+  return Math.max(lt, Math.min(c.dur * .5, 1 + String(c.text).length * .05));
+}
 function drawText(g, c, lt, W, H, u) {
+  const la = textAnimT(c, lt);
   const fs = Math.max(1, c.size * u);
   g.font = `${c.italic ? 'italic ' : ''}${c.bold ? 'bold ' : ''}${fs}px "${c.font}", "Segoe UI", sans-serif`;
   if ('letterSpacing' in g) g.letterSpacing = (c.spacing || 0) * u + 'px';
@@ -255,7 +261,7 @@ function drawText(g, c, lt, W, H, u) {
   const ws = lines.map(l => g.measureText(l).width);
   const mw = Math.max(1, ...ws), th = lines.length * lh, pad = c.pad * u;
   let shown = Infinity; const total = lines.join('').length;
-  if (c.tanim === 'typewriter') { const T = Math.min(c.dur * 0.75, Math.max(.3, total * 0.07)); shown = Math.floor(clamp(lt / T, 0, 1) * total); }
+  if (c.tanim === 'typewriter') { const T = Math.min(c.dur * 0.75, Math.max(.3, total * 0.07)); shown = Math.floor(clamp(la / T, 0, 1) * total); }
   if (c.tanim === 'credits') { const k = lt / Math.max(.1, c.dur); g.translate(0, (1 - 2 * k) * (H / 2 + th / 2 + pad) / Math.max(.01, c.scale) - (c.y * H - H / 2)); }
   if (c.bgOpacity > 0) {
     g.save(); g.globalAlpha *= c.bgOpacity; g.fillStyle = c.bgColor; g.beginPath();
@@ -271,7 +277,7 @@ function drawText(g, c, lt, W, H, u) {
   };
   const charMode = CHAR_ANIMS.has(c.tanim);
   let used = 0, gi = 0;
-  const kProg = clamp(lt / Math.max(.1, c.dur * .9), 0, 1);
+  const kProg = clamp(la / Math.max(.1, c.dur * .9), 0, 1);
   for (let i = 0; i < lines.length; i++) {
     let s = lines[i];
     const x0 = c.align === 'left' ? -mw / 2 : c.align === 'right' ? mw / 2 - ws[i] : -ws[i] / 2;
@@ -288,18 +294,18 @@ function drawText(g, c, lt, W, H, u) {
       if (ch === ' ') continue;
       let dy = 0, a = 1, sc = 1, color = null, txt = ch, dx = 0;
       switch (c.tanim) {
-        case 'wave': dy = Math.sin(lt * 5 + gi * .45) * fs * .15; break;
-        case 'drop': { const p = clamp((lt - gi * .05) / .5, 0, 1); dy = -(1 - bounceOut(p)) * fs * 1.6; a = p > 0 ? 1 : 0; break; }
-        case 'letters': a = clamp((lt - gi * .04) / .3, 0, 1); dy = (1 - a) * fs * .3; break;
-        case 'zoomletters': { const p = clamp((lt - gi * .05) / .35, 0, 1); sc = 1 + (1 - ease(p)) * 2.5; a = p; break; }
+        case 'wave': dy = Math.sin(la * 5 + gi * .45) * fs * .15; break;
+        case 'drop': { const p = clamp((la - gi * .05) / .5, 0, 1); dy = -(1 - bounceOut(p)) * fs * 1.6; a = p > 0 ? 1 : 0; break; }
+        case 'letters': a = clamp((la - gi * .04) / .3, 0, 1); dy = (1 - a) * fs * .3; break;
+        case 'zoomletters': { const p = clamp((la - gi * .05) / .35, 0, 1); sc = 1 + (1 - ease(p)) * 2.5; a = p; break; }
         case 'karaoke': if (gi / Math.max(1, total) < kProg) color = c.color2; break;
-        case 'rainbow': color = `hsl(${(gi * 25 + lt * 120) % 360},90%,60%)`; break;
-        case 'scramble': if (lt < gi * .035 + .4) { const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#$%&@'; txt = pool[Math.floor(srand(gi, Math.floor(lt * 25)) * pool.length)]; } break;
-        case 'glitchtext': { const b = Math.floor(lt * 12); if (srand(gi, b) > .82) { dx = (srand(gi, b, 1) - .5) * fs * .3; dy = (srand(gi, b, 2) - .5) * fs * .2; } break; }
+        case 'rainbow': color = `hsl(${(gi * 25 + la * 120) % 360},90%,60%)`; break;
+        case 'scramble': if (la < gi * .035 + .4) { const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#$%&@'; txt = pool[Math.floor(srand(gi, Math.floor(la * 25)) * pool.length)]; } break;
+        case 'glitchtext': { const b = Math.floor(la * 12); if (srand(gi, b) > .82) { dx = (srand(gi, b, 1) - .5) * fs * .3; dy = (srand(gi, b, 2) - .5) * fs * .2; } break; }
       }
       if (a <= 0) continue;
       g.save(); g.globalAlpha *= a; g.translate(x + cw / 2 + dx, y + dy); if (sc !== 1) g.scale(sc, sc);
-      if (c.tanim === 'glitchtext' && srand(gi, Math.floor(lt * 12), 3) > .7) { g.save(); g.globalAlpha *= .7; g.fillStyle = '#ff004c'; g.fillText(txt, -cw / 2 - fs * .04, 0); g.fillStyle = '#00e5ff'; g.fillText(txt, -cw / 2 + fs * .04, 0); g.restore(); }
+      if (c.tanim === 'glitchtext' && srand(gi, Math.floor(la * 12), 3) > .7) { g.save(); g.globalAlpha *= .7; g.fillStyle = '#ff004c'; g.fillText(txt, -cw / 2 - fs * .04, 0); g.fillStyle = '#00e5ff'; g.fillText(txt, -cw / 2 + fs * .04, 0); g.restore(); }
       paint(txt, -cw / 2, 0, color); g.restore();
     }
   }

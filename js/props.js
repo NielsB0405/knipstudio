@@ -96,6 +96,22 @@ function renderProps() {
   const m = media.get(c.mediaId), vis = kindOf(c) === 'visual';
   box.append(h('div', 'ptitle', `${TYPE_ICONS[c.type]} ${esc(c.type === 'text' ? c.text.split('\n')[0] : (c.name || TYPE_NAMES[c.type]))}`));
   box.append(h('div', 'psub', `${TYPE_NAMES[c.type]} · ${fmt(c.start)} – ${fmt(c.start + c.dur)}${m && m.w ? ` · ${m.w}×${m.h}` : ''}`));
+  if (c.type === 'text') section(box, 'text', '🅣 Tekst', b => {
+    const ta = h('textarea'); ta.value = c.text; bind(ta, c, 'text', i => i.value, { label: 'Tekst gewijzigd' }); b.append(ta);
+    b.append(h('div', 'hint', 'Variabelen: {aftellen} {tijd} {rest} {procent} {teller} {datum} {klok}'));
+    sel_(b, c, 'Lettertype', 'font', FONTS.map(f => [f, f]));
+    rng(b, c, 'Grootte', 'size', 8, 300, 1);
+    const r = h('div', 'btnrow');
+    for (const [k, n] of [['bold', '<b>B</b>'], ['italic', '<i>I</i>'], ['shadow', 'Schaduw'], ['glow', 'Gloed'], ['gradFill', 'Verloop']]) { const bt = h('button', c[k] ? 'on' : '', n); bt.onclick = () => edit(() => c[k] = !c[k], n.replace(/<[^>]+>/g, '')); r.append(bt); }
+    for (const [a, n] of [['left', '⯇'], ['center', '≡'], ['right', '⯈']]) { const bt = h('button', c.align === a ? 'on' : '', n); bt.onclick = () => edit(() => c.align = a, 'Uitlijning'); r.append(bt); }
+    b.append(r);
+    col(b, c, 'Kleur', 'color'); col(b, c, 'Kleur 2', 'color2');
+    rng(b, c, 'Letterafstand', 'spacing', -10, 60, 1); rng(b, c, 'Regelafstand', 'lineH', .8, 2.5, .05);
+    rng(b, c, 'Rand dikte', 'strokeW', 0, 15, .5); col(b, c, 'Randkleur', 'stroke');
+    rng(b, c, 'Achtergrond', 'bgOpacity', 0, 1, .01, { disp: pct }); col(b, c, 'Achtergr. kleur', 'bgColor'); rng(b, c, 'Opvulling', 'pad', 0, 80, 1);
+    sel_(b, c, 'Tekstanimatie', 'tanim', TANIMS);
+    if (/\{teller\}/.test(c.text)) { num(b, c, 'Teller van', 'countFrom', { step: 1, dec: 0 }); num(b, c, 'Teller tot', 'countTo', { step: 1, dec: 0 }); num(b, c, 'Decimalen', 'dec', { step: 1, dec: 0, min: 0 }); }
+  });
   section(box, 'clip', '🎬 Clip', b => {
     if (c.type !== 'text') txt(b, c, 'Naam', 'name');
     num(b, c, 'Start', 'start', { unit: 's', min: 0, tl: true });
@@ -113,22 +129,6 @@ function renderProps() {
     btns(b, acts);
   });
   if (vis || isAV(c)) fadeSection(box, c, vis);
-  if (c.type === 'text') section(box, 'text', '🅣 Tekst', b => {
-    const ta = h('textarea'); ta.value = c.text; bind(ta, c, 'text', i => i.value, { label: 'Tekst gewijzigd' }); b.append(ta);
-    b.append(h('div', 'hint', 'Variabelen: {aftellen} {tijd} {rest} {procent} {teller} {datum} {klok}'));
-    sel_(b, c, 'Lettertype', 'font', FONTS.map(f => [f, f]));
-    rng(b, c, 'Grootte', 'size', 8, 300, 1);
-    const r = h('div', 'btnrow');
-    for (const [k, n] of [['bold', '<b>B</b>'], ['italic', '<i>I</i>'], ['shadow', 'Schaduw'], ['glow', 'Gloed'], ['gradFill', 'Verloop']]) { const bt = h('button', c[k] ? 'on' : '', n); bt.onclick = () => edit(() => c[k] = !c[k], n.replace(/<[^>]+>/g, '')); r.append(bt); }
-    for (const [a, n] of [['left', '⯇'], ['center', '≡'], ['right', '⯈']]) { const bt = h('button', c.align === a ? 'on' : '', n); bt.onclick = () => edit(() => c.align = a, 'Uitlijning'); r.append(bt); }
-    b.append(r);
-    col(b, c, 'Kleur', 'color'); col(b, c, 'Kleur 2', 'color2');
-    rng(b, c, 'Letterafstand', 'spacing', -10, 60, 1); rng(b, c, 'Regelafstand', 'lineH', .8, 2.5, .05);
-    rng(b, c, 'Rand dikte', 'strokeW', 0, 15, .5); col(b, c, 'Randkleur', 'stroke');
-    rng(b, c, 'Achtergrond', 'bgOpacity', 0, 1, .01, { disp: pct }); col(b, c, 'Achtergr. kleur', 'bgColor'); rng(b, c, 'Opvulling', 'pad', 0, 80, 1);
-    sel_(b, c, 'Tekstanimatie', 'tanim', TANIMS);
-    if (/\{teller\}/.test(c.text)) { num(b, c, 'Teller van', 'countFrom', { step: 1, dec: 0 }); num(b, c, 'Teller tot', 'countTo', { step: 1, dec: 0 }); num(b, c, 'Decimalen', 'dec', { step: 1, dec: 0, min: 0 }); }
-  });
   if (c.type === 'shape') section(box, 'shape', '◆ Vorm', b => {
     sel_(b, c, 'Vorm', 'shape', [['rect', 'Rechthoek'], ['ellipse', 'Ellips/cirkel'], ['triangle', 'Driehoek'], ['star', 'Ster'], ['arrow', 'Pijl'], ['heart', 'Hart'], ['hexagon', 'Zeshoek'], ['bubble', 'Tekstballon'], ['line', 'Lijn'], ['progress', 'Voortgangsbalk']]);
     col(b, c, 'Vulkleur', 'fill'); col(b, c, 'Randkleur', 'strokeC'); rng(b, c, 'Rand dikte', 'strokeW2', 0, 30, .5);

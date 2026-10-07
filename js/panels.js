@@ -7,7 +7,11 @@ async function makeFromKey(key) {
   if (key.startsWith('m:')) { const m = media.get(key.slice(2)); return m ? clipFromMedia(m) : null; }
   const f = ITEMS.get(key); return f ? await f() : null;
 }
-function addAtPlayhead(c) { if (!c) return; edit(() => { c.start = playhead; addClip(c); select(c.id); }, 'Toegevoegd: ' + (c.name || TYPE_NAMES[c.type])); }
+function addAtPlayhead(c) {
+  if (!c) return; edit(() => { c.start = playhead; addClip(c); select(c.id); }, 'Toegevoegd: ' + (c.name || TYPE_NAMES[c.type]));
+  if (c.type === 'text') focusTextBox();
+}
+function focusTextBox() { secOpen.text = true; renderProps(); setTimeout(() => { const t = $('#propsBody textarea'); if (t) { $('#props').scrollTop = 0; t.focus(); t.select(); } }, 30); }
 function regItem(el, key, make) {
   ITEMS.set(key, make); el.draggable = true;
   el.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', 'kn:' + key));

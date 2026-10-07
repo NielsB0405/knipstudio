@@ -156,7 +156,8 @@ function syncMedia(t) {
       } else {
         if (el.playbackRate !== c.speed) el.playbackRate = c.speed;
         if (!el.paused) el.pause();
-        if (Math.abs(el.currentTime - target) > 0.02 && !el.seeking) el.currentTime = target;
+        // bij beeld-voor-beeld exporteren elk beeldje exact opzoeken (anders dubbele beeldjes bij 60 fps)
+        if (Math.abs(el.currentTime - target) > (exporting && exporting.offline ? 0.002 : 0.02) && !el.seeking) el.currentTime = target;
       }
     } else {
       if (!el.paused) el.pause();
@@ -179,8 +180,8 @@ async function decodeMedia(m) {
   m._buf = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(ab);
   return m._buf;
 }
-async function renderMixdown(start, end, onProg) {
-  const sr = 44100, len = Math.max(1, Math.ceil((end - start) * sr));
+async function renderMixdown(start, end, onProg, sr = 44100) {
+  const len = Math.max(1, Math.ceil((end - start) * sr));
   const oc = new OfflineAudioContext(2, len, sr);
   const omix = oc.createGain(), oMaster = oc.createGain(); oMaster.gain.value = P.masterVol ?? 1;
   if (P.limiter) { const l = makeLimiter(oc); omix.connect(l); l.connect(oMaster); } else omix.connect(oMaster);

@@ -151,7 +151,8 @@ function gifWorker(self) {
 
 /* ---------------- export dialog ---------------- */
 const EXPORT_TYPES = [
-  { k: 'video', n: '🎬 Video (MP4/WebM)', d: 'Realtime opname, met audio. Beste kwaliteit.' },
+  { k: 'mp4', n: '🎬 Video (MP4, haarscherp)', d: 'Beeld voor beeld gerenderd met geluid: vloeiend en scherp, geen blokjes. Duurt iets langer.' },
+  { k: 'video', n: '⚡ Video realtime (snel)', d: 'Neemt het afspelen op. Snel, maar kan haperen op een tragere laptop.' },
   { k: 'gif', n: '🖼 Geanimeerde GIF', d: 'Frame-voor-frame gerenderd, eigen GIF-encoder in een Web Worker.' },
   { k: 'wav', n: '🎵 Audio (WAV, offline)', d: 'Exacte mixdown, sneller dan realtime.' },
   { k: 'audio', n: '🎧 Audio (WebM/M4A)', d: 'Gecomprimeerde audio, realtime.' },
@@ -159,7 +160,7 @@ const EXPORT_TYPES = [
   { k: 'frame', n: '📷 Huidig frame (PNG)', d: 'Momentopname in exportresolutie.' },
   { k: 'pkg', n: '📦 Projectpakket (.ksp)', d: 'Project + alle media in één bestand.' },
 ];
-let exType = 'video';
+let exType = window.VideoEncoder ? 'mp4' : 'video';
 function videoFormats() {
   const list = [
     ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'MP4 (H.264 + AAC)', 'mp4'], ['video/mp4;codecs=avc1,mp4a', 'MP4 (H.264)', 'mp4'], ['video/mp4', 'MP4', 'mp4'],
@@ -177,7 +178,15 @@ function openExport() {
   const row = (label, html) => { const r = h('div', 'row', `<label>${label}</label>${html}`); o.append(r); return r; };
   const res = `<select id="exRes"><option value="360">360p</option><option value="480">480p</option><option value="720">720p (HD)</option><option value="1080" selected>1080p (Full HD)</option><option value="1440">1440p (2K)</option><option value="2160">2160p (4K)</option></select>`;
   const range = `<select id="exRange"><option value="all">Hele project</option><option value="sel">Alleen selectie</option><option value="markers">Tussen eerste twee markeringen</option></select>`;
-  if (exType === 'video') {
+  if (exType === 'mp4') {
+    const pr = row('Voorinstelling', `<select id="exPreset"><option value="">Eigen instellingen</option>${Object.keys(EX_PRESETS).map(k => `<option>${k}</option>`).join('')}</select>`);
+    row('Resolutie', res); row('Framerate', `<select id="exFps"><option>24</option><option selected>30</option><option>60</option></select>`);
+    row('Kwaliteit', `<select id="exQ"><option value="0.5">Klein bestand</option><option value="1">Standaard</option><option value="1.8" selected>Hoog</option><option value="3">Maximaal</option></select>`);
+    row('Bereik', range);
+    $('select', pr).onchange = e => { const p = EX_PRESETS[e.target.value]; if (!p) return; $('#exRes').value = p.res; $('#exFps').value = p.fps; $('#exQ').value = p.q; if (p.ratio && p.ratio !== P.ratio && confirm(`Beeldverhouding van het project naar ${p.ratio} zetten?`)) edit(() => P.ratio = p.ratio, 'Beeldverhouding'); };
+    if (!window.VideoEncoder) o.append(h('p', 'hint', '⚠ Deze browser ondersteunt dit niet. Gebruik Chrome of Edge, of kies “Video realtime”.'));
+    else o.append(h('p', 'hint', 'Elk beeldje wordt apart gerenderd. Dat duurt meestal 1–3× de lengte van je video, maar het resultaat is altijd vloeiend.'));
+  } else if (exType === 'video') {
     const pr = row('Voorinstelling', `<select id="exPreset"><option value="">Eigen instellingen</option>${Object.keys(EX_PRESETS).map(k => `<option>${k}</option>`).join('')}</select>`);
     row('Resolutie', res); row('Framerate', `<select id="exFps"><option>24</option><option selected>30</option><option>60</option></select>`);
     row('Kwaliteit', `<select id="exQ"><option value="0.5">Klein bestand</option><option value="1" selected>Standaard</option><option value="1.8">Hoog</option><option value="3">Maximaal</option></select>`);
@@ -223,7 +232,8 @@ async function startExport() {
   $('#exForm').classList.add('hidden'); $('#exProg').classList.remove('hidden'); $('#exStart').classList.add('hidden'); $('#exCancel').textContent = 'Annuleren';
   exportProgress(0, 'Voorbereiden…');
   try {
-    if (exType === 'video' || exType === 'audio') await exportRealtime(range);
+    if (exType === 'mp4') await exportMp4(range);
+    else if (exType === 'video' || exType === 'audio') await exportRealtime(range);
     else if (exType === 'gif') await exportGif(range);
     else if (exType === 'png') await exportPngZip(range);
     else if (exType === 'wav') { const ab = await renderMixdown(range[0], range[1], p => exportProgress(p, 'Audio mixen…')); exportDone(wavBlob(ab), safeName(P.name) + '.wav', fmt(range[1] - range[0]), 'audio'); }
@@ -272,20 +282,135 @@ async function exportRealtime([start, end]) {
   };
   mr.start(500); play();
 }
+/* ---------------- MP4 (WebCodecs): beeld voor beeld, H.264 + AAC ---------------- */
+async function pickVideoConfig(w, hh, fps, q) {
+  const bitrate = Math.round(12e6 * (w * hh) / (1920 * 1080) * (fps / 30) * q);
+  const big = w * hh > 1920 * 1088 || fps > 30;
+  const codecs = big ? ['avc1.640033', 'avc1.64002a', 'avc1.4d0033', 'avc1.42003e'] : ['avc1.640028', 'avc1.64002a', 'avc1.640033', 'avc1.4d0028', 'avc1.42003e'];
+  for (const hw of ['prefer-hardware', 'no-preference'])
+    for (const codec of codecs) {
+      const cfg = { codec, width: w, height: hh, bitrate, framerate: fps, avc: { format: 'avc' }, hardwareAcceleration: hw };
+      try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg; } catch (e) { }
+    }
+  return null;
+}
+async function pickAudioConfig(sampleRate, numberOfChannels) {
+  for (const [codec, mux] of [['mp4a.40.2', 'aac'], ['opus', 'opus']]) {
+    const cfg = { codec, sampleRate, numberOfChannels, bitrate: 192000 };
+    try { if (window.AudioEncoder && (await AudioEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch (e) { }
+  }
+  return null;
+}
+async function encodeAudioInto(ab, cfg, muxer) {
+  let err = null;
+  const enc = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: e => err = e });
+  enc.configure(cfg);
+  const nCh = ab.numberOfChannels, block = 4096;
+  for (let off = 0; off < ab.length; off += block) {
+    if (err) break;
+    const len = Math.min(block, ab.length - off), data = new Float32Array(len * nCh);
+    for (let c = 0; c < nCh; c++) data.set(ab.getChannelData(c).subarray(off, off + len), c * len);
+    const ad = new AudioData({ format: 'f32-planar', sampleRate: ab.sampleRate, numberOfFrames: len, numberOfChannels: nCh, timestamp: Math.round(off * 1e6 / ab.sampleRate), data });
+    enc.encode(ad); ad.close();
+    if (enc.encodeQueueSize > 32) await sleep(0);
+  }
+  await enc.flush(); enc.close();
+  if (err) throw err;
+}
+async function exportMp4([start, end]) {
+  if (!window.VideoEncoder || !window.Mp4Muxer) throw new Error('Deze browser kan geen MP4 maken — gebruik Chrome/Edge of kies “Video realtime”');
+  const res = +$('#exRes').value, fps = +$('#exFps').value, q = +$('#exQ').value;
+  const [w, hh] = dims(res);
+  const vcfg = await pickVideoConfig(w, hh, fps, q);
+  if (!vcfg) throw new Error(`MP4 in ${w}×${hh} wordt niet ondersteund — kies een lagere resolutie`);
+  const SR = 48000;
+  const hasAudio = P.clips.some(c => isAV(c) && !c.muted && c.start < end && c.start + c.dur > start);
+  const acfg = hasAudio ? await pickAudioConfig(SR, 2) : null;
+  const muxer = new Mp4Muxer.Muxer({
+    target: new Mp4Muxer.ArrayBufferTarget(), fastStart: 'in-memory', firstTimestampBehavior: 'offset',
+    video: { codec: 'avc', width: w, height: hh, frameRate: fps },
+    audio: acfg ? { codec: acfg.mux, numberOfChannels: 2, sampleRate: SR } : undefined,
+  });
+  if (acfg) {
+    exportProgress(0, 'Geluid mixen…');
+    const ab = await renderMixdown(start, end, p => exportProgress(p * .05, 'Geluid mixen…'), SR);
+    exportProgress(.05, 'Geluid coderen…');
+    await encodeAudioInto(ab, acfg.cfg, muxer);
+  }
+  let err = null;
+  const venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: e => err = e });
+  venc.configure(vcfg);
+  const dur = Math.round(1e6 / fps), t0 = performance.now();
+  const n = await offlineFrames([start, end], fps, res, async (i, total) => {
+    if (err) throw err;
+    const fr = new VideoFrame(cv, { timestamp: Math.round(i * 1e6 / fps), duration: dur });
+    venc.encode(fr, { keyFrame: i % (fps * 2) === 0 }); fr.close();
+    while (venc.encodeQueueSize > 6) await sleep(2);
+    if (i % 5 === 0) {
+      const left = (performance.now() - t0) / (i + 1) * (total - i - 1) / 1000;
+      exportProgress(.05 + .95 * (i + 1) / total, `Beeld ${i + 1} / ${total} · nog ±${left < 60 ? Math.ceil(left) + ' s' : Math.ceil(left / 60) + ' min'}`);
+    }
+  }, true);
+  exportProgress(1, 'Afronden…');
+  await venc.flush(); venc.close();
+  if (err) throw err;
+  muxer.finalize();
+  exportDone(new Blob([muxer.target.buffer], { type: 'video/mp4' }), safeName(P.name) + '.mp4', `${w}×${hh} · ${fps} fps · ${n} beelden · ${fmt(end - start)}`, 'video');
+}
 function finishRealtimeExport() { if (!exporting || !exporting.mr) return; playing = false; pauseAllEls(); $('#playBtn').textContent = '▶'; if (exporting.mr.state !== 'inactive') exporting.mr.stop(); }
-async function offlineFrames([start, end], fps, res, onFrame) {
+/* Snel beeld voor beeld: de bronvideo kort laten doorlopen en elk nieuw beeldje pakken
+   (requestVideoFrameCallback), i.p.v. per beeldje een dure seek (~4× sneller). */
+function nextVideoFrame(el) {
+  return new Promise(res => {
+    const to = setTimeout(() => { el.pause(); res(false); }, 800);
+    el.requestVideoFrameCallback((now, md) => {
+      clearTimeout(to); el.pause();
+      const d = md.mediaTime - (el._lastMT ?? md.mediaTime); if (d > .001 && d < .2) el._srcDur = d;
+      el._lastMT = md.mediaTime; res(true);
+    });
+    if (el.paused) el.play().catch(() => { clearTimeout(to); res(false); });
+  });
+}
+async function seekEl(el, t) {
+  el.pause();
+  await new Promise(r => { const to = setTimeout(r, 4000); el.addEventListener('seeked', () => { clearTimeout(to); r(); }, { once: true }); el.currentTime = t; });
+  el._lastMT = el.currentTime;
+}
+async function settleVideosAt(t) {
+  for (const c of P.clips) {
+    if (c.type !== 'video') continue;
+    const el = getEl(c); if (!el) continue;
+    if (!isActiveAt(c, t)) { if (!el.paused) el.pause(); continue; }
+    if (el.playbackRate !== 1) el.playbackRate = 1;
+    const target = c.in + (t - c.start) * c.speed, sd = el._srcDur || 1 / 30;
+    // eerste beeld van een clip of een sprong: één keer echt opzoeken
+    if (el._lastMT == null || target < el._lastMT - .001 || target - el._lastMT > .6 || !el.requestVideoFrameCallback) { await seekEl(el, target); continue; }
+    for (let guard = 0; target >= el._lastMT + sd * .75 && guard < 40; guard++) {
+      if (!(await nextVideoFrame(el))) { await seekEl(el, target); break; }
+    }
+  }
+}
+async function offlineFrames([start, end], fps, res, onFrame, quiet) {
   pause(); const keep = [...selSet]; selSet.clear(); const kp = sel; sel = null;
   const [w, hh] = dims(res); cv.width = w; cv.height = hh;
   exporting = { offline: true, cancelled: false };
   const n = Math.max(1, Math.round((end - start) * fps));
+  const monVol = monitor ? monitor.gain.value : null; if (monitor) monitor.gain.value = 0; // stil tijdens exporteren
+  for (const el of els.values()) el._lastMT = null;
   try {
     for (let i = 0; i < n; i++) {
       if (exporting.cancelled) throw new Error('geannuleerd');
-      await renderFrameAt(start + i / fps);
+      const t = start + i / fps; playhead = t;
+      await settleVideosAt(t); draw(t);
       await onFrame(i, n);
-      exportProgress((i + 1) / n, `Frame ${i + 1} / ${n} renderen…`);
+      if (!quiet) exportProgress((i + 1) / n, `Frame ${i + 1} / ${n} renderen…`);
     }
-  } finally { exporting = null; sel = kp; keep.forEach(i => selSet.add(i)); restoreCanvas(); pauseAllEls(); }
+  } finally {
+    exporting = null; sel = kp; keep.forEach(i => selSet.add(i)); pauseAllEls();
+    for (const el of els.values()) { el._lastMT = null; el.playbackRate = 1; }
+    if (monitor && monVol != null) monitor.gain.value = monVol;
+    restoreCanvas();
+  }
   return n;
 }
 async function exportGif(range) {
