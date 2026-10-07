@@ -61,11 +61,11 @@ function detectRegion(src, sw, sh, rx, ry, rw, rh, maxW) {
   }
   return out;
 }
-function detectFrame(src, sw, sh) {
+function detectFrame(src, sw, sh, quick) {
   if (!FACE.detector || !sw || !sh) return null;
   try {
-    let boxes = detectRegion(src, sw, sh, 0, 0, sw, sh, 640);
-    if (P.face.small) {
+    let boxes = detectRegion(src, sw, sh, 0, 0, sw, sh, quick ? 384 : 640);
+    if (P.face.small && !quick) {
       // overlapping tiles so small / distant faces become big enough for the short-range model
       const tw = sw * .6, th = sh * .6;
       for (const [fx, fy] of [[0, 0], [.4, 0], [0, .4], [.4, .4], [.2, .2]]) boxes = boxes.concat(detectRegion(src, sw, sh, fx * sw, fy * sh, tw, th, 640));
@@ -79,11 +79,19 @@ function facesFor(c, src, sw, sh) {
   if (!m.faces) m.faces = new Map();
   const isImg = c.type === 'image';
   const t = isImg ? 0 : (src.currentTime || 0), b = Math.round(t * FACE_BUCKETS);
+  const hb = Math.round(P.face.hold * FACE_BUCKETS);
   if (!m.faces.has(b) && FACE.detector && (isImg || (src.readyState >= 2 && !src.seeking))) {
-    const r = detectFrame(src, sw, sh); if (r) m.faces.set(b, r);
+    if (!playing || exporting || isImg) { const r = detectFrame(src, sw, sh); if (r) m.faces.set(b, r); }
+    else {
+      // afspelen: niet elk beeldje detecteren (dat maakt het haperig) — gebruik de achtergrondscan
+      // en detecteer alleen snel en hooguit ~5x per seconde als er in de buurt nog niets bekend is
+      let near = false; for (let i = b - Math.max(2, hb); i <= b + Math.max(2, hb) && !near; i++) near = m.faces.has(i);
+      const now = performance.now();
+      if (!near && now - (FACE.lastLive || 0) > 200) { FACE.lastLive = now; const r = detectFrame(src, sw, sh, true); if (r) m.faces.set(b, r); }
+    }
   }
   if (isImg) return m.faces.get(0) || [];
-  const hb = Math.round(P.face.hold * FACE_BUCKETS); let all = [];
+  let all = [];
   for (let i = b - hb; i <= b + hb; i++) { const r = m.faces.get(i); if (r) all = all.concat(r); }
   return mergeBoxes(all);
 }
@@ -159,6 +167,7 @@ async function scanMedia(m) {
   let max = 0, last = 0;
   for (let t = 0; t < dur; t += step) {
     if (!FACE.detector) break;
+    while (playing || exporting) await sleep(250);
     const b = Math.round(t * FACE_BUCKETS);
     if (!m.faces.has(b)) {
       v.currentTime = Math.min(t, dur - .02);
@@ -168,7 +177,7 @@ async function scanMedia(m) {
     }
     m.faceScan = Math.min(.999, t / dur); m.faceMax = Math.max(m.faceMax || 0, max);
     if (performance.now() - last > 400) { last = performance.now(); refreshFaceUI(); }
-    await sleep(0);
+    await sleep(15);
   }
   v.removeAttribute('src'); v.load();
   m.faceScan = 1; requestDraw();
