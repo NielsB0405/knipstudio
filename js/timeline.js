@@ -310,7 +310,15 @@ tracksEl.addEventListener('drop', async e => {
   }, 'Toegevoegd aan tijdlijn');
 });
 tlScroll.addEventListener('wheel', e => {
-  if (!e.ctrlKey) return; e.preventDefault();
+  if (!e.ctrlKey) {
+    // op de tijdbalk: scrollwiel én horizontaal swipen (touchpad) schuiven de tijdlijn links/rechts
+    if (!e.target.closest('.ruler')) return;
+    e.preventDefault();
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    tlScroll.scrollLeft += d * (e.deltaMode === 1 ? 30 : e.deltaMode === 2 ? tlScroll.clientWidth : 1);
+    return;
+  }
+  e.preventDefault();
   const t = timeFromClientX(e.clientX), r = tlScroll.getBoundingClientRect();
   setZoom(pps * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
   tlScroll.scrollLeft = t * pps - (e.clientX - r.left - HEAD);

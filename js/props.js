@@ -4,7 +4,7 @@
    small builder functions; animatable properties get a ◆ keyframe
    button and update live while the playhead moves.
    ===================================================================== */
-const secOpen = { clip: true, transform: true, text: true, shape: true, color: true, audio: true, proj: true, master: true, stats: true, tips: true, particles: true, viz: true, gpu: true, kf: true, multi: true };
+const secOpen = { clip: true, fade: true, transform: true, text: true, shape: true, color: true, audio: true, proj: true, master: true, stats: true, tips: true, particles: true, viz: true, gpu: true, kf: true, multi: true };
 let liveCtl = [];
 function section(box, key, title, fn, badge) {
   const d = h('details', 'sec'); d.open = !!secOpen[key];
@@ -59,6 +59,35 @@ function txt(box, c, label, path) { const r = h('div', 'row', `<label>${label}</
 function btns(box, list) { const r = h('div', 'btnrow'); for (const [n, f, t] of list) { const b = h('button', '', n); if (t) b.title = t; b.onclick = f; r.append(b); } box.append(r); return r; }
 const pct = x => Math.round(x * 100) + '%';
 const deg = x => Math.round(x) + '°';
+/* Fade in/uit: beeld (overgang 'Vervagen') en geluid (fade-in/-out) in één keer */
+function fadeLen(c, vis, side) {
+  if (vis) { const t = side === 'in' ? c.tin : c.tout; return t && t.type === 'fade' ? t.dur : 0; }
+  return (side === 'in' ? c.fadeIn : c.fadeOut) || 0;
+}
+function setFade(c, vis, side, v) {
+  v = Math.max(0, Math.min(v, c.dur / 2));
+  if (vis) { const t = v > 0.001 ? { type: 'fade', dur: v } : { type: 'none', dur: (side === 'in' ? c.tin : c.tout)?.dur || .6 }; if (side === 'in') c.tin = t; else c.tout = t; }
+  if (isAV(c)) { if (side === 'in') c.fadeIn = v; else c.fadeOut = v; }
+}
+function fadeSection(box, c, vis) {
+  const on = fadeLen(c, vis, 'in') > 0 || fadeLen(c, vis, 'out') > 0;
+  section(box, 'fade', '🌗 Fade', b => {
+    b.append(h('div', 'hint', vis ? (isAV(c) ? 'Beeld en geluid faden samen in en uit.' : 'Beeld faden vanuit en naar transparant.') : 'Geluid zachtjes laten opkomen en wegsterven.'));
+    const max = Math.max(.1, Math.min(5, Math.floor(c.dur / 2 * 10) / 10)), F = { get in() { return fadeLen(c, vis, 'in'); }, get out() { return fadeLen(c, vis, 'out'); } };
+    const opt = side => ({ def: 0, label: 'Fade gewijzigd', disp: x => +x > 0 ? (+x).toFixed(1) + ' s' : 'uit', set: v => setFade(c, vis, side, v), after: () => updateFadeMarks(c) });
+    rng(b, F, 'Fade-in', 'in', 0, max, .1, opt('in'));
+    rng(b, F, 'Fade-out', 'out', 0, max, .1, opt('out'));
+    const both = v => () => edit(() => { setFade(c, vis, 'in', v); setFade(c, vis, 'out', v); }, v ? `Fade ${v} s` : 'Fade uit');
+    btns(b, [['Geen', both(0)], ['0,5 s', both(.5)], ['1 s', both(1)], ['2 s', both(2)]]);
+  }, on ? 'aan' : '');
+}
+function updateFadeMarks(c) {
+  const d = tracksEl.querySelector(`.clip[data-id="${c.id}"]`); if (!d) return;
+  d.querySelectorAll('.tri').forEach(x => x.remove());
+  if (c.tin && c.tin.type !== 'none') d.appendChild(h('div', 'tri in'));
+  if (c.tout && c.tout.type !== 'none') d.appendChild(h('div', 'tri out'));
+  if (S.waveforms && isAV(c)) renderWaveOf(c);
+}
 function renderProps() {
   const box = $('#propsBody'), st = $('#props').scrollTop; box.innerHTML = ''; liveCtl = [];
   if (selSet.size > 1) { multiProps(box); $('#props').scrollTop = st; return; }
@@ -83,6 +112,7 @@ function renderProps() {
     if (isMediaVis(c)) acts.push(['⛶ Beeldvullend', () => edit(() => { c.fit = 'cover'; c.scale = 1; c.x = c.y = .5; c.rot = 0; delete c.kf.x; delete c.kf.y; delete c.kf.scale; delete c.kf.rot; }, 'Beeldvullend')]);
     btns(b, acts);
   });
+  if (vis || isAV(c)) fadeSection(box, c, vis);
   if (c.type === 'text') section(box, 'text', '🅣 Tekst', b => {
     const ta = h('textarea'); ta.value = c.text; bind(ta, c, 'text', i => i.value, { label: 'Tekst gewijzigd' }); b.append(ta);
     b.append(h('div', 'hint', 'Variabelen: {aftellen} {tijd} {rest} {procent} {teller} {datum} {klok}'));
