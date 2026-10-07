@@ -223,11 +223,3 @@ details.sec .body{padding-bottom:10px}
 ::-webkit-scrollbar-thumb{background:#44445a;border-radius:6px;border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-track{background:transparent}
 @media (max-width:1300px){main{grid-template-columns:64px 250px minmax(0,1fr) 300px}.palbtn{min-width:0}.palbtn .kbd,.tlhint{display:none}}
-
-/* privacy */
-.facechip{font-size:12px;padding:4px 10px;border-radius:14px}
-.facechip.on{background:#1c5e45;border-color:#3ddc97;color:#fff}
-.facechip.bad{background:#5e1c2a;border-color:var(--danger);color:#fff}
-.facestat{padding:8px 10px;border-radius:8px;margin:8px 0;font-size:12px;background:var(--panel3)}
-.facestat.actief{border:1px solid #3ddc97}.facestat.fout{border:1px solid var(--danger)}
-.big-chk{font-size:14px;padding:8px;background:var(--panel3);border-radius:8px}

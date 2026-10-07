@@ -2,7 +2,7 @@
 /* =====================================================================
    KnipStudio Pro 2 — core: helpers, settings, project model, undo
    ===================================================================== */
-const KS_VERSION = '2.0-privacy';
+const KS_VERSION = '2.0';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -32,19 +32,7 @@ function once(el, ev, ms = 10000) {
 }
 function h(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms); }
-/* Op claude.ai loopt opslaan via het downloads-venster; daarbuiten via een gewone link. */
-function dlName(n) { return n.replace(/\.srt$/i, '.srt.txt').replace(/\.ksp$/i, '.ksp.zip'); }
-async function download(blob, name) {
-  let d = null; try { d = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { }
-  if (d) {
-    try { await d.save({ filename: dlName(name), data: blob }); } catch (e) {
-      if (e && e.code === 'rejected_extension') toast('Dit bestandstype kan hier niet worden opgeslagen — kies een ander formaat (bijv. WebM voor audio).');
-      else if (e && e.code !== 'declined') toast('Opslaan lukte niet: ' + (e.message || e.code));
-    }
-    return;
-  }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 120000);
-}
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 120000); }
 /** Fill missing keys of `t` from defaults `d` (deep for plain objects). Used for migrating old projects. */
 function deepDefaults(t, d) {
   for (const k in d) {
@@ -65,10 +53,9 @@ function saveSettings() { try { localStorage.setItem('ks2-settings', JSON.string
 const HEAD = 178;
 const FPS = 30;
 function mkTrack(kind, name) { return { id: uid(), kind, name, muted: false, hidden: false, locked: false, solo: false, vol: 1, voice: false, duck: false, duckAmt: .7 }; }
-const FACE_DEF = { on: true, mode: 'blur', strength: 60, pad: .3, conf: .45, hold: .4, small: true, boxes: false, shape: 'ellipse', emoji: '😊', color: '#000000' };
 function newProject() {
   return {
-    face: deepClone(FACE_DEF), v: 2, name: 'Mijn video', ratio: '16:9', bg: '#000000', limiter: true, masterVol: 1,
+    v: 2, name: 'Mijn video', ratio: '16:9', bg: '#000000', limiter: true, masterVol: 1,
     tracks: [mkTrack('visual', 'Video 2'), mkTrack('visual', 'Video 1'), mkTrack('audio', 'Audio 1'), mkTrack('audio', 'Audio 2')],
     clips: [], markers: []
   };
@@ -84,7 +71,6 @@ function baseClip(type, extra) {
     mask: { type: 'none', w: .7, h: .7, x: 0, y: 0, rot: 0, feather: 0, invert: false },
     fx: [], kf: {},
     anim: 'none', tin: { type: 'none', dur: .6 }, tout: { type: 'none', dur: .6 },
-    faceMode: 'auto', faceStyle: 'project',
     vol: 1, muted: false, pan: 0, fadeIn: 0, fadeOut: 0, bass: 0, mid: 0, treble: 0, lowcut: 0, highcut: 0, drive: 0,
     echo: { mix: 0, time: .3, fb: .35 }, reverb: { mix: 0, size: 2 },
   }, extra || {});

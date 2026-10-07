@@ -2,14 +2,14 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>KnipStudio Privacy</title>
+<title>KnipStudio Pro 2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div id="app">
   <header id="top">
-    <div class="logo">✂️ <b>KnipStudio</b> <span>PRIVACY</span></div>
+    <div class="logo">✂️ <b>KnipStudio</b> <span>PRO 2</span></div>
     <input id="projName" type="text" value="Mijn video" title="Projectnaam">
     <span class="sep"></span>
     <button id="bNew" title="Nieuw project">Nieuw</button>
@@ -43,7 +43,6 @@
       <button data-panel="filters"><span class="ic">🌈</span>Filters</button>
       <button data-panel="effects"><span class="ic">✨</span>Effecten</button>
       <button data-panel="subs"><span class="ic">💬</span>Ondertitels</button>
-      <button data-panel="privacy"><span class="ic">🙂</span>Privacy</button>
       <button data-panel="history"><span class="ic">🕘</span>Historie</button>
     </nav>
     <section id="panel"><div id="panelBody"></div></section>
@@ -60,7 +59,6 @@
         <span title="Monitorvolume">🔊</span><input type="range" id="monVol" min="0" max="1" step="0.01" value="1" style="width:64px">
         <canvas id="meter" width="140" height="24" title="Audioniveau"></canvas>
         <div class="grow"></div>
-        <button id="faceStatus" class="facechip">⏳ Gezichtsdetectie laden…</button>
         <button class="icon" id="tGrid" title="Hulplijnen: raster / veilige zones">#</button>
         <button class="icon" id="tScope" title="Scopes: histogram / golfvorm / parade / vectorscoop">📈</button>
         <button class="icon" id="tSnap" title="Momentopname als PNG">📷</button>
@@ -181,7 +179,6 @@
 <script src="js/props.js"></script>
 <script src="js/export.js"></script>
 <script src="js/tools.js"></script>
-<script src="js/faceblur.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
    Simple clips draw directly; clips with masks / GPU effects / keying /
    adjustment layers are rendered into an offscreen layer first.
    ===================================================================== */
-const cv = $('#cv'), ctx = cv.getContext('2d'), ov = $('#ov');
+const cv = $('#cv'), ctx = cv.getContext('2d', { alpha: false }), ov = $('#ov');
 const layerCv = document.createElement('canvas'), lctx = layerCv.getContext('2d');
 function dims(short) {
   const [a, b] = P.ratio.split(':').map(Number);
@@ -226,7 +226,6 @@ function drawMedia(g, c, W, H, u) {
   if (c.shadow) { g.save(); g.shadowColor = 'rgba(0,0,0,.65)'; g.shadowBlur = 30 * u; g.shadowOffsetY = 10 * u; g.fillStyle = '#000'; g.beginPath(); g.roundRect(-dw / 2, -dh / 2, dw, dh, rr); g.fill(); g.restore(); }
   if (rr > 0) { g.save(); g.beginPath(); g.roundRect(-dw / 2, -dh / 2, dw, dh, rr); g.clip(); g.drawImage(src, sx, sy, cw, ch, -dw / 2, -dh / 2, dw, dh); g.restore(); }
   else g.drawImage(src, sx, sy, cw, ch, -dw / 2, -dh / 2, dw, dh);
-  applyFaceBlur(g, c, src, sw, sh, sx, sy, cw, ch, dw, dh, u);
   if (c.border > 0) { g.lineWidth = c.border * u; g.strokeStyle = c.borderColor; g.beginPath(); g.roundRect(-dw / 2, -dh / 2, dw, dh, rr); g.stroke(); }
   return [dw, dh];
 }

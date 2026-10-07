@@ -95,7 +95,7 @@ window.addEventListener('beforeunload', e => { if (exporting || rec) { e.prevent
 window.addEventListener('error', e => console.warn('Fout:', e.message));
 
 (async function boot() {
-  applyTheme(); updateFaceStatus();
+  applyTheme();
   $('#tGrid').classList.toggle('on', S.thirds || S.safe); $('#tScope').classList.toggle('on', S.scopes !== 'none'); $('#scope').classList.toggle('hidden', S.scopes === 'none');
   ensureCanvasDims(); fitStage(); setZoom(60); renderPanel(); changed();
   requestAnimationFrame(loop);

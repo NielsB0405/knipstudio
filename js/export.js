@@ -214,12 +214,10 @@ function exportDone(blob, name, info, previewKind) {
   if (previewKind === 'video') { const v = h('video'); v.controls = true; v.src = url; pv.append(v); }
   else if (previewKind === 'img') { const i = h('img'); i.src = url; pv.append(i); }
   else if (previewKind === 'audio') { const a = h('audio'); a.controls = true; a.src = url; pv.append(a); }
-  const a = $('#exDl'); a.href = url; a.download = name; a.onclick = e => { e.preventDefault(); download(blob, name); }; a.classList.remove('hidden');
+  const a = $('#exDl'); a.href = url; a.download = name; a.classList.remove('hidden');
   $('#exCancel').textContent = 'Sluiten';
 }
 async function startExport() {
-  if (P.face.on && FACE.status === 'laden') { toast('Wachten op gezichtsdetectie…'); await faceReady(); }
-  if (P.face.on && FACE.status !== 'actief' && !confirm('Gezichtsdetectie werkt niet — gezichten worden NIET vervaagd. Toch exporteren?')) return;
   let range;
   try { range = exType === 'pkg' || exType === 'frame' ? [0, 0] : exportRange(); } catch (e) { return toast(e.message); }
   $('#exForm').classList.add('hidden'); $('#exProg').classList.remove('hidden'); $('#exStart').classList.add('hidden'); $('#exCancel').textContent = 'Annuleren';
@@ -364,7 +362,7 @@ async function openProjectFile(f) {
 let db = null, saveT = null, booted = false;
 function idbOpen() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('knipstudio-privacy', 1);
+    const r = indexedDB.open('knipstudio2', 1);
     r.onupgradeneeded = () => { r.result.createObjectStore('media', { keyPath: 'id' }); r.result.createObjectStore('kv'); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });

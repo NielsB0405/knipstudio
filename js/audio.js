@@ -146,11 +146,15 @@ function syncMedia(t) {
     if ('preservesPitch' in el && el.preservesPitch !== c.keepPitch) el.preservesPitch = c.keepPitch;
     if (active) {
       const target = c.in + lt * c.speed;
-      if (el.playbackRate !== c.speed) el.playbackRate = c.speed;
       if (playing) {
-        if (el.paused) { if (Math.abs(el.currentTime - target) > 0.05) el.currentTime = target; el.play().catch(() => { }); }
-        else if (Math.abs(el.currentTime - target) > 0.3) el.currentTime = target;
+        const drift = target - el.currentTime;
+        let rate = c.speed;
+        if (el.paused) { if (Math.abs(drift) > 0.05) el.currentTime = target; el.play().catch(() => { }); }
+        else if (Math.abs(drift) > 1) { if (!el.seeking) el.currentTime = target; }
+        else if (Math.abs(drift) > 0.06) rate = c.speed * clamp(1 + drift, 0.9, 1.1);
+        if (Math.abs(el.playbackRate - rate) > 0.005) el.playbackRate = rate;
       } else {
+        if (el.playbackRate !== c.speed) el.playbackRate = c.speed;
         if (!el.paused) el.pause();
         if (Math.abs(el.currentTime - target) > 0.02 && !el.seeking) el.currentTime = target;
       }

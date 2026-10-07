@@ -37,6 +37,8 @@ function drawMeter() {
   const m = $('#meter'), g = m.getContext('2d'); let lvl = 0;
   if (analyser) { analyser.getFloatTimeDomainData(meterBuf); let s = 0; for (const v of meterBuf) s = Math.max(s, Math.abs(v)); lvl = s; }
   meterPeak = Math.max(lvl, meterPeak * 0.95);
+  if (lvl < 1e-4 && meterPeak < 1e-4 && drawMeter.idle) return;
+  drawMeter.idle = lvl < 1e-4 && meterPeak < 1e-4;
   g.clearRect(0, 0, m.width, m.height); g.fillStyle = '#111'; g.fillRect(0, 0, m.width, m.height);
   const db = v => clamp((20 * Math.log10(Math.max(v, 1e-5)) + 48) / 48, 0, 1);
   const gr = g.createLinearGradient(0, 0, m.width, 0);

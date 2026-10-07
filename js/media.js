@@ -86,7 +86,6 @@ async function analyze(m) {
     if (m.type === 'image') {
       const img = new Image(); img.src = m.url; await img.decode();
       m.img = img; m.w = img.naturalWidth || 800; m.h = img.naturalHeight || 600; m.thumb = thumbOf(img, m.w, m.h, 240, 135);
-      queueFaceScan(m);
       return;
     }
     const v = document.createElement(m.type === 'video' ? 'video' : 'audio'); v.preload = 'auto'; v.muted = true; v.src = m.url;
@@ -109,14 +108,14 @@ async function analyze(m) {
     v.removeAttribute('src'); v.load();
     if (m.blob && m.blob.size < 600e6) {
       try {
-        const ab = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(await m.blob.arrayBuffer());
-        const chs = []; for (let c = 0; c < ab.numberOfChannels; c++) chs.push(ab.getChannelData(c).slice().buffer);
+        // alleen voor de golfvorm: 3 kHz is ruim genoeg (100 pieken per seconde) en scheelt veel geheugen
+        const ab = await new OfflineAudioContext(1, 1, 3000).decodeAudioData(await m.blob.arrayBuffer());
+        const chs = [ab.getChannelData(0).slice().buffer];
         m.peaks = await analysis({ op: 'peaks', chs, sr: ab.sampleRate }, chs);
         m.hasAudio = true;
         if (m.type === 'audio' && (!m.duration || m.duration === m.durHint)) m.duration = ab.duration;
       } catch (e) { m.hasAudio = false; }
     }
-    queueFaceScan(m);
   } catch (e) { console.warn('analyse mislukt', m.name, e); m.error = true; }
 }
 function thumbOf(src, w, hh, tw, th) {

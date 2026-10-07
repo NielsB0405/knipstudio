@@ -3,7 +3,7 @@
    Timeline: tracks, clips, ruler, playhead, selection, drag/trim,
    marquee multi-select, keyframe diamonds, drag & drop.
    ===================================================================== */
-const tlScroll = $('#tl-scroll'), tlInner = $('#tl-inner'), tracksEl = $('#tracks'), phEl = $('#playhead');
+const timeLbl = $('#timeLbl'), tlScroll = $('#tl-scroll'), tlInner = $('#tl-inner'), tracksEl = $('#tracks'), phEl = $('#playhead');
 const tlWidth = () => Math.max(projectDur() + 30, (tlScroll.clientWidth - HEAD) / pps + 5) * pps;
 function renderTimeline() {
   const w = tlWidth();
@@ -97,14 +97,11 @@ function drawRuler() {
   });
 }
 function updatePlayheadUI() {
-  const x = playhead * pps;
+  const x = playhead * pps, sl = tlScroll.scrollLeft, vw = tlScroll.clientWidth - HEAD;
   phEl.style.left = (HEAD + x) + 'px';
-  phEl.style.visibility = x < tlScroll.scrollLeft - 1 ? 'hidden' : 'visible';
-  $('#timeLbl').textContent = `${fmt(playhead)} / ${fmt(projectDur())}`;
-  if (playing) {
-    const vw = tlScroll.clientWidth - HEAD;
-    if (x > tlScroll.scrollLeft + vw - 40 || x < tlScroll.scrollLeft) tlScroll.scrollLeft = Math.max(0, x - 60);
-  }
+  phEl.style.visibility = x < sl - 1 ? 'hidden' : 'visible';
+  const lbl = `${fmt(playhead)} / ${fmt(projectDur())}`; if (timeLbl.textContent !== lbl) timeLbl.textContent = lbl;
+  if (playing && (x > sl + vw - 40 || x < sl)) tlScroll.scrollLeft = Math.max(0, x - 60);
   refreshLiveProps();
 }
 function timeFromClientX(cx) { const r = tlScroll.getBoundingClientRect(); return Math.max(0, (cx - r.left + tlScroll.scrollLeft - HEAD) / pps); }

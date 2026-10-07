@@ -143,7 +143,6 @@ function renderProps() {
     }
     sel_(b, c, 'Overvloeimodus', 'blend', [['source-over', 'Normaal'], ['multiply', 'Vermenigvuldigen'], ['screen', 'Bleken'], ['overlay', 'Bedekken'], ['darken', 'Donkerder'], ['lighten', 'Lichter'], ['color-dodge', 'Kleur tegenhouden'], ['color-burn', 'Kleur doordrukken'], ['hard-light', 'Fel licht'], ['soft-light', 'Zacht licht'], ['difference', 'Verschil'], ['exclusion', 'Uitsluiting'], ['hue', 'Kleurtoon'], ['saturation', 'Verzadiging'], ['color', 'Kleur'], ['luminosity', 'Helderheid']]);
   });
-  if (isMediaVis(c)) faceSection(box, c);
   section(box, 'kf', '◆ Keyframes & beweging', b => kfSection(b, c), allKfTimes(c).length || '');
   if (vis) section(box, 'mask', '◐ Masker', b => {
     sel_(b, c, 'Vorm', 'mask.type', [['none', 'Geen'], ['ellipse', 'Ellips/cirkel'], ['rect', 'Rechthoek'], ['rounded', 'Afgeronde rechthoek'], ['heart', 'Hart'], ['star', 'Ster'], ['triangle', 'Driehoek'], ['hexagon', 'Zeshoek'], ['linear', 'Lineair verloop']]);
