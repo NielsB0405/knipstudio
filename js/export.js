@@ -169,7 +169,7 @@ function videoFormats() {
   const seen = new Set(); return list.filter(f => { const k = f[2] + f[0].includes('vp9'); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 function audioFormats() { return [['audio/webm;codecs=opus', 'WebM/Opus', 'weba'], ['audio/mp4', 'M4A (AAC)', 'm4a']].filter(f => window.MediaRecorder && MediaRecorder.isTypeSupported(f[0])); }
-const EX_PRESETS = { 'YouTube 1080p': { res: 1080, fps: 30, q: 1.8, ratio: '16:9' }, 'TikTok / Reels': { res: 1080, fps: 30, q: 1.4, ratio: '9:16' }, 'Instagram (4:5)': { res: 1080, fps: 30, q: 1.4, ratio: '4:5' }, 'Snel concept 480p': { res: 480, fps: 24, q: .5 } };
+const EX_PRESETS = { 'YouTube 1080p': { res: 1080, fps: 30, q: 1.8, ratio: '16:9' }, 'TikTok / Reels': { res: 1080, fps: 30, q: 1.8, ratio: '9:16' }, 'Instagram (4:5)': { res: 1080, fps: 30, q: 1.8, ratio: '4:5' }, 'Snel concept 480p': { res: 480, fps: 24, q: .5 } };
 function openExport() {
   if (!projectDur() && exType !== 'pkg') return toast('De tijdlijn is leeg');
   $('#exList').innerHTML = '';
@@ -263,7 +263,7 @@ async function exportRealtime([start, end]) {
   const audioOnly = exType === 'audio';
   const f = (audioOnly ? audioFormats() : videoFormats())[+$('#exFmt').value];
   if (!f) throw new Error('Formaat niet ondersteund');
-  const res = audioOnly ? (S.quality || 720) : +$('#exRes').value, fps = audioOnly ? 30 : +$('#exFps').value, q = audioOnly ? 1 : +$('#exQ').value;
+  const res = audioOnly ? (S.quality || 720) : +$('#exRes').value || 1080, fps = audioOnly ? 30 : +$('#exFps').value || 30, q = audioOnly ? 1 : +$('#exQ').value || 1.8;
   pause(); selSet.clear(); sel = null; renderProps();
   const [w, hh] = dims(res);
   exporting = { start, end, chunks: [], cancelled: false, ext: f[2], mime: f[0] };
@@ -319,7 +319,7 @@ async function encodeAudioInto(ab, cfg, muxer) {
 }
 async function exportMp4([start, end]) {
   if (!window.VideoEncoder || !window.Mp4Muxer) throw new Error('Deze browser kan geen MP4 maken — gebruik Chrome/Edge of kies “Video realtime”');
-  const res = +$('#exRes').value, fps = +$('#exFps').value, q = +$('#exQ').value;
+  const res = +$('#exRes').value || 1080, fps = +$('#exFps').value || 30, q = +$('#exQ').value || 1.8;
   const [w, hh] = dims(res);
   const vcfg = await pickVideoConfig(w, hh, fps, q);
   if (!vcfg) throw new Error(`MP4 in ${w}×${hh} wordt niet ondersteund — kies een lagere resolutie`);
