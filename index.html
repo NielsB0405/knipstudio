@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>KnipStudio Privacy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="logo">✂️ <b>KnipStudio</b> <span>PRIVACY</span></div>
+    <input id="projName" type="text" value="Mijn video" title="Projectnaam">
+    <span class="sep"></span>
+    <button id="bNew" title="Nieuw project">Nieuw</button>
+    <button id="bOpen" title="Project of pakket openen (Ctrl+O)">Openen</button>
+    <button id="bSave" title="Project opslaan als bestand (Ctrl+S)">Opslaan</button>
+    <span class="sep"></span>
+    <button id="bUndo" class="icon" title="Ongedaan maken (Ctrl+Z)">↶</button>
+    <button id="bRedo" class="icon" title="Opnieuw (Ctrl+Y)">↷</button>
+    <span id="saveState" class="muted"></span>
+    <div class="grow"></div>
+    <button id="bPal" class="palbtn" title="Commandopalet (Ctrl+K)">🔍 Zoek een actie… <span class="kbd">Ctrl K</span></button>
+    <select id="ratioSel" title="Beeldverhouding">
+      <option value="16:9">16:9 Breedbeeld</option><option value="9:16">9:16 Verticaal (TikTok/Reels)</option>
+      <option value="1:1">1:1 Vierkant</option><option value="4:5">4:5 Instagram</option>
+      <option value="4:3">4:3 Klassiek</option><option value="21:9">21:9 Cinema</option>
+    </select>
+    <button id="bSettings" class="icon" title="Instellingen">⚙</button>
+    <button id="bHelp" class="icon" title="Sneltoetsen">⌨</button>
+    <button id="bExport" class="primary">⬆ Exporteren</button>
+  </header>
+
+  <main>
+    <nav id="side">
+      <button data-panel="media"><span class="ic">📁</span>Media</button>
+      <button data-panel="record"><span class="ic">⏺️</span>Opnemen</button>
+      <button data-panel="text"><span class="ic">🅣</span>Tekst</button>
+      <button data-panel="audio"><span class="ic">🎵</span>Geluid</button>
+      <button data-panel="elements"><span class="ic">⭐</span>Elementen</button>
+      <button data-panel="bg"><span class="ic">🎨</span>Achtergrond</button>
+      <button data-panel="trans"><span class="ic">🔀</span>Overgangen</button>
+      <button data-panel="filters"><span class="ic">🌈</span>Filters</button>
+      <button data-panel="effects"><span class="ic">✨</span>Effecten</button>
+      <button data-panel="subs"><span class="ic">💬</span>Ondertitels</button>
+      <button data-panel="privacy"><span class="ic">🙂</span>Privacy</button>
+      <button data-panel="history"><span class="ic">🕘</span>Historie</button>
+    </nav>
+    <section id="panel"><div id="panelBody"></div></section>
+    <section id="center">
+      <div id="stageWrap"><div id="stage"><canvas id="cv"></canvas><canvas id="ov"></canvas></div><canvas id="scope" class="hidden" width="300" height="170"></canvas></div>
+      <div id="transport">
+        <button class="icon" id="tStart" title="Naar begin (Home)">⏮</button>
+        <button class="icon" id="tBack" title="1 frame terug (←)">◀︎</button>
+        <button id="playBtn" title="Afspelen/pauzeren (Spatie)">▶</button>
+        <button class="icon" id="tFwd" title="1 frame vooruit (→)">▶︎</button>
+        <button class="icon" id="tEnd" title="Naar einde (End)">⏭</button>
+        <span class="time" id="timeLbl">00:00.00 / 00:00.00</span>
+        <button class="icon" id="tLoop" title="Herhalen">🔁</button>
+        <span title="Monitorvolume">🔊</span><input type="range" id="monVol" min="0" max="1" step="0.01" value="1" style="width:64px">
+        <canvas id="meter" width="140" height="24" title="Audioniveau"></canvas>
+        <div class="grow"></div>
+        <button id="faceStatus" class="facechip">⏳ Gezichtsdetectie laden…</button>
+        <button class="icon" id="tGrid" title="Hulplijnen: raster / veilige zones">#</button>
+        <button class="icon" id="tScope" title="Scopes: histogram / golfvorm / parade / vectorscoop">📈</button>
+        <button class="icon" id="tSnap" title="Momentopname als PNG">📷</button>
+        <button class="icon" id="tFull" title="Volledig scherm">⛶</button>
+      </div>
+    </section>
+    <aside id="props"><div id="propsBody"></div></aside>
+  </main>
+
+  <div id="splitter" title="Sleep om de tijdlijn groter/kleiner te maken"></div>
+
+  <section id="tl">
+    <div id="tl-tools">
+      <button id="aSplit" title="Splitsen op afspeelkop (S)">✂️ Splitsen</button>
+      <button id="aDup" title="Dupliceren (Ctrl+D)">⧉ Dupliceren</button>
+      <button id="aDel" title="Verwijderen (Delete)">🗑 Verwijderen</button>
+      <button id="aRipple" title="Verwijderen en gat dichten (Shift+Delete)">⇤ Ripple</button>
+      <button id="aMarker" title="Markering toevoegen (M)">📍 Markering</button>
+      <button id="aSnap" class="on" title="Magnetisch uitlijnen aan/uit">🧲 Uitlijnen</button>
+      <span class="sep"></span>
+      <button id="aAddV">+ Videotrack</button>
+      <button id="aAddA">+ Audiotrack</button>
+      <span class="muted tlhint">Shift+slepen = meerdere selecteren</span>
+      <div class="grow"></div>
+      <button class="icon" id="zOut" title="Uitzoomen (-)">－</button>
+      <input type="range" id="zoom" min="0" max="100" value="45" style="width:120px">
+      <button class="icon" id="zIn" title="Inzoomen (+)">＋</button>
+      <button id="zFit" title="Hele project passend maken">Passend</button>
+    </div>
+    <div id="tl-scroll">
+      <div id="tl-inner">
+        <div class="ruler"><div class="corner" id="tlInfo">0 clips</div><canvas id="ruler-cv"></canvas></div>
+        <div id="tracks"></div>
+        <div id="playhead"><div class="knob"></div></div>
+        <div id="snapline"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<input type="file" id="fileIn" multiple accept="video/*,audio/*,image/*" class="hidden">
+<input type="file" id="projIn" accept=".json,.ksp,.zip,application/json" class="hidden">
+<input type="file" id="srtIn" accept=".srt,.vtt,text/plain" class="hidden">
+
+<div id="exportModal" class="modal hidden"><div class="mbox wide">
+  <h2>⬆ Exporteren</h2>
+  <div id="exForm" class="exgrid"><div id="exList"></div><div id="exOpts"></div></div>
+  <div id="exProg" class="hidden"><p id="exStatus">Bezig…</p><progress id="exBar" max="1" value="0"></progress></div>
+  <div id="exDone" class="hidden"><p>✅ Klaar! <span id="exInfo" class="muted"></span></p><div id="exPreview"></div></div>
+  <div class="mfoot">
+    <button id="exCancel">Sluiten</button>
+    <a id="exDl" class="hidden"><button class="primary">⬇ Downloaden</button></a>
+    <button id="exStart" class="primary">Start export</button>
+  </div>
+</div></div>
+
+<div id="palModal" class="modal top hidden"><div class="mbox pal">
+  <input id="palIn" type="text" placeholder="Typ een actie, effect, filter of paneel…" autocomplete="off">
+  <div id="palList"></div>
+</div></div>
+
+<div id="setModal" class="modal hidden"><div class="mbox">
+  <h2>⚙ Instellingen</h2><div id="setBody"></div>
+  <div class="mfoot"><button data-close>Sluiten</button></div>
+</div></div>
+
+<div id="ssModal" class="modal hidden"><div class="mbox wide">
+  <h2>🖼 Diavoorstelling maken</h2><div id="ssBody"></div>
+  <div class="mfoot"><button data-close>Annuleren</button><button id="ssGo" class="primary">Maken</button></div>
+</div></div>
+
+<div id="testModal" class="modal hidden"><div class="mbox">
+  <h2>🧪 Zelftest</h2><div id="testBody"></div>
+  <div class="mfoot"><button data-close>Sluiten</button></div>
+</div></div>
+
+<div id="helpModal" class="modal hidden"><div class="mbox">
+  <h2>⌨ Sneltoetsen</h2>
+  <div class="keys">
+    <span class="kbd">Ctrl+K</span><span>Commandopalet — zoek elke actie</span>
+    <span class="kbd">Spatie</span><span>Afspelen / pauzeren</span>
+    <span class="kbd">J / K / L</span><span>5 s terug / pauze / 5 s vooruit</span>
+    <span class="kbd">← / →</span><span>1 frame (Shift = 1 s, Alt = vorige/volgende keyframe)</span>
+    <span class="kbd">[ / ]</span><span>Vorige / volgende markering</span>
+    <span class="kbd">Home / End</span><span>Naar begin / einde</span>
+    <span class="kbd">S</span><span>Splitsen op afspeelkop</span>
+    <span class="kbd">T</span><span>Tekst toevoegen</span>
+    <span class="kbd">Delete</span><span>Verwijderen (Shift = ripple)</span>
+    <span class="kbd">Ctrl+A</span><span>Alles selecteren</span>
+    <span class="kbd">Shift+klik / Shift+slepen</span><span>Meerdere clips selecteren</span>
+    <span class="kbd">Ctrl+C / V / D</span><span>Kopiëren / plakken / dupliceren</span>
+    <span class="kbd">Ctrl+V (afbeelding)</span><span>Afbeelding of tekst plakken uit klembord</span>
+    <span class="kbd">Ctrl+Z / Ctrl+Y</span><span>Ongedaan maken / opnieuw</span>
+    <span class="kbd">M</span><span>Markering toevoegen</span>
+    <span class="kbd">+ / −</span><span>Zoomen (of Ctrl+scroll)</span>
+    <span class="kbd">Scroll op voorbeeld</span><span>Geselecteerde clip schalen</span>
+    <span class="kbd">Ctrl+S / Ctrl+O</span><span>Opslaan / openen</span>
+    <span class="kbd">Ctrl+E</span><span>Exporteren</span>
+    <span class="kbd">I</span><span>Media importeren</span>
+    <span class="kbd">Esc</span><span>Selectie opheffen</span>
+  </div>
+  <div class="mfoot"><button onclick="runSelfTests()">🧪 Zelftest uitvoeren</button><button data-close>Sluiten</button></div>
+</div></div>
+
+<div id="ctx" class="hidden"></div>
+<div id="toast"></div>
+<div id="dropOverlay" class="hidden">Laat los om te importeren</div>
+
+<script src="js/core.js"></script>
+<script src="js/keyframes.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/gl.js"></script>
+<script src="js/render.js"></script>
+<script src="js/media.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/panels.js"></script>
+<script src="js/props.js"></script>
+<script src="js/export.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/faceblur.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
