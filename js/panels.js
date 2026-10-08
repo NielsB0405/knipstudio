@@ -121,6 +121,7 @@ const PANELS = {
       if (m.thumb) th.style.backgroundImage = `url(${m.thumb})`; else th.textContent = m.busy ? '⏳' : (TYPE_ICONS[m.type] || '?');
       if (m.type !== 'image' && m.duration) th.append(h('span', 'dur', fmtS(m.duration)));
       if (used) th.append(h('span', 'used', '✓' + (used > 1 ? used : '')));
+      if (m.proxyState && m.proxyState !== 'klaar') { const pb = h('span', 'proxy', m.proxyState === 'mislukt' ? '⚠' : '⚙ ' + m.proxyState); pb.title = m.proxyState === 'mislukt' ? 'Voorbeeldversie maken mislukt (origineel wordt gebruikt)' : 'Lichte voorbeeldversie wordt gemaakt voor soepel afspelen'; th.append(pb); }
       const add = h('button', 'add', '+'); add.title = 'Toevoegen aan tijdlijn'; add.onclick = e => { e.stopPropagation(); if (!m.missing) addMediaToEnd(m); };
       const del = h('button', 'del', '✕'); del.title = 'Verwijderen'; del.onclick = e => { e.stopPropagation(); removeMedia(m); };
       th.append(add, del); card.append(th, h('div', 'mn', (m.missing ? '⚠ ' : '') + esc(m.name)));

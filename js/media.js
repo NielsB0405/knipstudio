@@ -117,6 +117,7 @@ async function analyze(m) {
       } catch (e) { m.hasAudio = false; }
     }
   } catch (e) { console.warn('analyse mislukt', m.name, e); m.error = true; }
+  if (m.type === 'video' && !m.error) queueProxy(m);
 }
 function thumbOf(src, w, hh, tw, th) {
   const c = document.createElement('canvas'); c.width = tw; c.height = th; const g = c.getContext('2d');

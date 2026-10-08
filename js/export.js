@@ -185,7 +185,7 @@ function openExport() {
     row('Bereik', range);
     $('select', pr).onchange = e => { const p = EX_PRESETS[e.target.value]; if (!p) return; $('#exRes').value = p.res; $('#exFps').value = p.fps; $('#exQ').value = p.q; if (p.ratio && p.ratio !== P.ratio && confirm(`Beeldverhouding van het project naar ${p.ratio} zetten?`)) edit(() => P.ratio = p.ratio, 'Beeldverhouding'); };
     if (!window.VideoEncoder) o.append(h('p', 'hint', '⚠ Deze browser ondersteunt dit niet. Gebruik Chrome of Edge, of kies “Video realtime”.'));
-    else o.append(h('p', 'hint', 'Elk beeldje wordt apart gerenderd. Dat duurt meestal 1–3× de lengte van je video, maar het resultaat is altijd vloeiend.'));
+    else o.append(h('p', 'hint', 'Elk beeldje wordt apart gerenderd. Dat duurt meestal 1–3× de lengte van je video, maar het resultaat is altijd vloeiend. Houd dit tabblad open en zichtbaar tijdens het exporteren (anders gaat het veel langzamer).'));
   } else if (exType === 'video') {
     const pr = row('Voorinstelling', `<select id="exPreset"><option value="">Eigen instellingen</option>${Object.keys(EX_PRESETS).map(k => `<option>${k}</option>`).join('')}</select>`);
     row('Resolutie', res); row('Framerate', `<select id="exFps"><option>24</option><option selected>30</option><option>60</option></select>`);
@@ -358,36 +358,75 @@ async function exportMp4([start, end]) {
   exportDone(new Blob([muxer.target.buffer], { type: 'video/mp4' }), safeName(P.name) + '.mp4', `${w}×${hh} · ${fps} fps · ${n} beelden · ${fmt(end - start)}`, 'video');
 }
 function finishRealtimeExport() { if (!exporting || !exporting.mr) return; playing = false; pauseAllEls(); $('#playBtn').textContent = '▶'; if (exporting.mr.state !== 'inactive') exporting.mr.stop(); }
-/* Snel beeld voor beeld: de bronvideo kort laten doorlopen en elk nieuw beeldje pakken
-   (requestVideoFrameCallback), i.p.v. per beeldje een dure seek (~4× sneller). */
-function nextVideoFrame(el) {
-  return new Promise(res => {
-    const to = setTimeout(() => { el.pause(); res(false); }, 800);
-    el.requestVideoFrameCallback((now, md) => {
-      clearTimeout(to); el.pause();
-      const d = md.mediaTime - (el._lastMT ?? md.mediaTime); if (d > .001 && d < .2) el._srcDur = d;
-      el._lastMT = md.mediaTime; res(true);
-    });
-    if (el.paused) el.play().catch(() => { clearTimeout(to); res(false); });
-  });
+/* Snel beeld voor beeld: de bronvideo speelt gewoon door en elk gepresenteerd beeld komt als
+   VideoFrame in een kleine buffer (requestVideoFrameCallback). De export pakt daaruit het juiste
+   beeld; de video pauzeert alleen als de buffer vol is. Geen dure seek per beeld. */
+const PUMP_MAX = 12;
+function pumpStart(el) {
+  const p = el._pump = { q: [], on: true, ended: false, sd: 1 / 30, lastT: null };
+  const cb = (now, md) => {
+    if (!p.on) return;
+    const t = md.mediaTime;
+    if (p.lastT != null) { const d = t - p.lastT; if (d >= 1 / 120 && d < .2) p.sd = Math.min(p.sd, d); }
+    p.lastT = t;
+    try { p.q.push({ t, f: new VideoFrame(el, { timestamp: Math.round(t * 1e6) }) }); } catch (e) { }
+    if (p.q.length >= PUMP_MAX) el.pause();
+    el.requestVideoFrameCallback(cb);
+  };
+  p.onEnd = () => { p.ended = true; };
+  el.addEventListener('ended', p.onEnd);
+  el.requestVideoFrameCallback(cb);
+  el.playbackRate = el._rate || 1;
+  el.play().catch(() => { });
+}
+function pumpStop(el) {
+  const p = el._pump; if (!p) return;
+  p.on = false; p.q.forEach(x => x.f.close()); p.q = [];
+  el.removeEventListener('ended', p.onEnd); el._pump = null; el._exportFrame = null; el.pause();
+}
+/** Wacht tot de buffer het beeld voor bron-tijd `target` bevat; geeft dat VideoFrame (of null). */
+async function pumpFrameAt(el, target) {
+  const p = el._pump, t0 = performance.now();
+  for (;;) {
+    const lim = target + p.sd * .25;
+    while (p.q.length >= 2 && p.q[1].t <= lim) p.q.shift().f.close();
+    if (p.q.length >= 2 || p.ended || (p.q.length && p.q[0].t > lim)) break;
+    if (el.paused && !p.ended) el.play().catch(() => { });
+    if (performance.now() - t0 > 2500) return null; // geen beelden (bijv. tabblad op de achtergrond)
+    await sleep(3);
+  }
+  if (p.q.length < PUMP_MAX / 2 && el.paused && !p.ended) el.play().catch(() => { });
+  // gat in de buffer (browser miste beelden omdat hij druk was)? → het beeld voor nu ontbreekt
+  if (p.q.length >= 2 && p.q[0].t <= target && p.q[1].t - p.q[0].t > p.sd * 1.6 && target >= p.q[0].t + p.sd * .75) return 'gap';
+  return p.q[0] ? p.q[0].f : null;
 }
 async function seekEl(el, t) {
   el.pause();
   await new Promise(r => { const to = setTimeout(r, 4000); el.addEventListener('seeked', () => { clearTimeout(to); r(); }, { once: true }); el.currentTime = t; });
-  el._lastMT = el.currentTime;
 }
+const canPump = el => !!(el.requestVideoFrameCallback && window.VideoFrame);
 async function settleVideosAt(t) {
   for (const c of P.clips) {
     if (c.type !== 'video') continue;
     const el = getEl(c); if (!el) continue;
-    if (!isActiveAt(c, t)) { if (!el.paused) el.pause(); continue; }
-    if (el.playbackRate !== 1) el.playbackRate = 1;
-    const target = c.in + (t - c.start) * c.speed, sd = el._srcDur || 1 / 30;
-    // eerste beeld van een clip of een sprong: één keer echt opzoeken
-    if (el._lastMT == null || target < el._lastMT - .001 || target - el._lastMT > .6 || !el.requestVideoFrameCallback) { await seekEl(el, target); continue; }
-    for (let guard = 0; target >= el._lastMT + sd * .75 && guard < 40; guard++) {
-      if (!(await nextVideoFrame(el))) { await seekEl(el, target); break; }
-    }
+    if (!isActiveAt(c, t)) { pumpStop(el); if (!el.paused) el.pause(); continue; }
+    const target = c.in + (t - c.start) * c.speed, p = el._pump;
+    // sprong (nieuwe clip, terug in de tijd, of ver vooruit): buffer leeg, één keer opzoeken
+    const jump = !p || (p.q.length && (target < p.q[0].t - .3 || target > p.q[p.q.length - 1].t + 1));
+    if (jump) { pumpStop(el); await seekEl(el, target); if (canPump(el) && !el._noPump) pumpStart(el); }
+    if (el._pump) {
+      let f = await pumpFrameAt(el, target);
+      if (f === 'gap') {
+        // beelden gemist: bron langzamer laten lopen en vanaf hier opnieuw vullen
+        el._rate = Math.max(.25, (el._rate || 1) / 2);
+        pumpStop(el); await seekEl(el, target); pumpStart(el);
+        f = await pumpFrameAt(el, target); if (f === 'gap') f = el._pump && el._pump.q[0] ? el._pump.q[0].f : null;
+      }
+      if (f) { el._exportFrame = f; continue; }
+      // geen beelden ontvangen: rest van deze export per beeld opzoeken (langzamer, maar loopt nooit vast)
+      el._noPump = true; pumpStop(el); await seekEl(el, target);
+    } else await seekEl(el, target);
+    el._exportFrame = null;
   }
 }
 async function offlineFrames([start, end], fps, res, onFrame, quiet) {
@@ -396,7 +435,7 @@ async function offlineFrames([start, end], fps, res, onFrame, quiet) {
   exporting = { offline: true, cancelled: false };
   const n = Math.max(1, Math.round((end - start) * fps));
   const monVol = monitor ? monitor.gain.value : null; if (monitor) monitor.gain.value = 0; // stil tijdens exporteren
-  for (const el of els.values()) el._lastMT = null;
+  for (const el of els.values()) { pumpStop(el); el._rate = 1; el._noPump = false; }
   try {
     for (let i = 0; i < n; i++) {
       if (exporting.cancelled) throw new Error('geannuleerd');
@@ -407,7 +446,7 @@ async function offlineFrames([start, end], fps, res, onFrame, quiet) {
     }
   } finally {
     exporting = null; sel = kp; keep.forEach(i => selSet.add(i)); pauseAllEls();
-    for (const el of els.values()) { el._lastMT = null; el.playbackRate = 1; }
+    for (const el of els.values()) { pumpStop(el); el.playbackRate = 1; }
     if (monitor && monVol != null) monitor.gain.value = monVol;
     restoreCanvas();
   }

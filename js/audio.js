@@ -102,11 +102,11 @@ function connectEl(el) {
 }
 function getEl(c) {
   const m = media.get(c.mediaId); if (!m || !m.url) return null;
-  let el = els.get(c.id);
-  if (el && el._url !== m.url) { killEl(c.id); el = null; }
+  let el = els.get(c.id); const src = mediaSrc(m, c);
+  if (el && el._url !== src) { killEl(c.id); el = null; }
   if (!el) {
     el = document.createElement(c.type === 'video' ? 'video' : 'audio');
-    el.preload = 'auto'; el.playsInline = true; el.muted = true; el.src = m.url; el._url = m.url;
+    el.preload = 'auto'; el.playsInline = true; el.muted = true; el.src = src; el._url = src;
     el.addEventListener('seeked', requestDraw); el.addEventListener('loadeddata', requestDraw);
     els.set(c.id, el);
   }

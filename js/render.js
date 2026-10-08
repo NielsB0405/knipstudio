@@ -202,7 +202,11 @@ function applyMask(L, c, X, sz, lt, u) {
 function drawMedia(g, c, W, H, u) {
   const m = media.get(c.mediaId);
   let src = null, sw = 0, sh = 0;
-  if (c.type === 'video') { const el = getEl(c); if (el && el.readyState >= 2 && el.videoWidth) { src = el; sw = el.videoWidth; sh = el.videoHeight; } }
+  if (c.type === 'video') {
+    const el = getEl(c);
+    if (el && el._exportFrame) { src = el._exportFrame; sw = src.displayWidth; sh = src.displayHeight; } // beeld-voor-beeld export
+    else if (el && el.readyState >= 2 && el.videoWidth) { src = el; sw = el.videoWidth; sh = el.videoHeight; }
+  }
   else if (m && m.img) { src = m.img; sw = m.w; sh = m.h; }
   if (!src) {
     if (!m || m.missing) {
